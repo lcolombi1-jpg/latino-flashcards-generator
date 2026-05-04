@@ -15,23 +15,28 @@ def crea_flashcards(testo):
     
     for linea in linee:
         linea = linea.strip()
+        # Verifichiamo che ci siano i due punti E che non sia una riga vuota
         if ":" in linea:
-            # Dividiamo tra latino (prima dei :) e traduzione (dopo i :)
             parti = linea.split(":", 1)
             latino_completo = parti[0].strip()
             traduzione = parti[1].strip()
             
-            # Estraiamo il primo lemma (prima della virgola o dello spazio)
-            # Es: "arcŭo, arquo" -> diventa "arcŭo"
-            lemma_principale = latino_completo.split(",")[0].split()[0]
-            
-            # Puliamo il lemma per il fronte (opzionale, rimuove accenti grafici)
-            fronte = pulisci_lemma(lemma_principale)
-            
-            flashcards.append({
-                "fronte": fronte.upper(), # In maiuscolo per chiarezza
-                "retro": f"**Paradigma:** {latino_completo}\n\n**Traduzione:** {traduzione}"
-            })
+            # PROTEZIONE: verifichiamo se c'è del testo prima dei due punti
+            parti_latine = latino_completo.split(",")
+            if parti_latine and parti_latine[0].strip():
+                # Prendiamo la prima parte e dividiamo per spazi
+                parole_nel_lemma = parti_latine[0].split()
+                
+                if parole_nel_lemma: # Solo se la lista non è vuota
+                    lemma_principale = parole_nel_lemma[0]
+                    
+                    # Puliamo il lemma per il fronte
+                    fronte = pulisci_lemma(lemma_principale)
+                    
+                    flashcards.append({
+                        "fronte": fronte.upper(),
+                        "retro": f"**Paradigma:** {latino_completo}\n\n**Traduzione:** {traduzione}"
+                    })
             
     return flashcards
 
