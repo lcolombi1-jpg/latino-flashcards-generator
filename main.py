@@ -2,60 +2,90 @@ import streamlit as st
 import re
 import random
 
-# Funzione di analisi (rimane quasi uguale)
+def pulisci_lemma(testo):
+    # Rimuove i segni delle vocali lunghe/brevi per il fronte della card
+    mappa = {"ā": "a", "ă": "a", "ē": "e", "ĕ": "e", "ī": "i", "ĭ": "i", "ō": "o", "ŏ": "o", "ū": "u", "ŭ": "u"}
+    for chiave, valore in mappa.items():
+        testo = testo.replace(chiave, valore)
+    return testo
+
 def crea_flashcards(testo):
     flashcards = []
-    schema = re.compile(r"([^(]+)\s+\[.*?\]:\s+(.*)")
     linee = testo.strip().split('\n')
+    
     for linea in linee:
-        linea_pulita = re.sub(r"\(\d+\)", "", linea).strip()
-        match = schema.search(linea_pulita)
-        if match:
-            info_latina = match.group(1).strip()
-            traduzione = match.group(2).strip()
-            parti_latine = info_latina.split()
-            if parti_latine:
-                flashcards.append({"fronte": parti_latine[0], "retro": f"{info_latina} \n\n Traduzione: {traduzione}"})
+        linea = linea.strip()
+        if ":" in linea:
+            # Dividiamo tra latino (prima dei :) e traduzione (dopo i :)
+            parti = linea.split(":", 1)
+            latino_completo = parti[0].strip()
+            traduzione = parti[1].strip()
+            
+            # Estraiamo il primo lemma (prima della virgola o dello spazio)
+            # Es: "arcŭo, arquo" -> diventa "arcŭo"
+            lemma_principale = latino_completo.split(",")[0].split()[0]
+            
+            # Puliamo il lemma per il fronte (opzionale, rimuove accenti grafici)
+            fronte = pulisci_lemma(lemma_principale)
+            
+            flashcards.append({
+                "fronte": fronte.upper(), # In maiuscolo per chiarezza
+                "retro": f"**Paradigma:** {latino_completo}\n\n**Traduzione:** {traduzione}"
+            })
+            
     return flashcards
 
 # --- INTERFACCIA STREAMLIT ---
-st.title("📇 Generatore Flashcards di Latino")
+st.set_page_config(page_title="Latino Flashcards", layout="centered")
 
-# --- SEZIONE LETTURA FILE AGGIORNATA ---
 try:
-    # Tentativo 1: proviamo con utf-8
+    contenuto = ""
     try:
-        with open("lessico.txt", "r", encoding="utf-8") as file:
-            contenuto = file.read()
+        with open("lessico.txt", "r", encoding="utf-8") as f:
+            contenuto = f.read()
     except UnicodeDecodeError:
-        # Tentativo 2: se utf-8 fallisce, proviamo con latin-1
-        with open("lessico.txt", "r", encoding="latin-1") as file:
-            contenuto = file.read()
-    
-    cards = crea_flashcards(contenuto)
-    
-    # ... (il resto del codice dell'interfaccia Streamlit rimane uguale)
-    if "indice" not in st.session_state:
-        st.session_state.indice = 0
-        random.shuffle(cards)
-        st.session_state.cards = cards
+        with open("lessico.txt", "r", encoding="latin-1") as f:
+            contenuto = f.read()
 
-    if st.session_state.cards:
-        attuale = st.session_state.cards[st.session_state.indice]
-        st.subheader("Parola:")
-        st.info(f"### {attuale['fronte']}")
+    if contenuto:
+        cards = crea_flashcards(contenuto)
         
-        if st.button("Mostra Retro"):
-            st.success(attuale['retro'])
+        if not cards:
+            st.warning("⚠️ Non ho trovato parole. Controlla che nel file ci siano i due punti (:) tra il latino e l'italiano.")
+        else:
+            if "indice" not in st.session_state:
+                st.session_state.indice = 0
+                st.session_state.cards = cards
+                random.shuffle(st.session_state.cards)
 
-        if st.button("Prossima Parola ➡️"):
-            if st.session_state.indice < len(st.session_state.cards) - 1:
-                st.session_state.indice += 1
-                st.rerun()
-            else:
-                st.write("Hai finito il lessico! Ricarica la pagina per ricominciare.")
+            # Mostra progresso
+            st.write(f"Parola {st.session_state.indice + 1} di {len(st.session_state.cards)}")
+            
+            # Box della Flashcard
+            st.markdown(f"""
+            <div style="height: 200px; display: flex; align-items: center; justify-content: center; 
+            background-color: #f0f2f6; border-radius: 15px; border: 3px solid #ff4b4b; margin-bottom: 20px;">
+                <h1 style="color: #31333F; font-family: 'serif';">{st.session_state.cards[st.session_state.indice]['fronte']}</h1>
+            </div>
+            """, unsafe_allow_html=True)
+
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("👁️ MOSTRA RETRO", use_container_width=True):
+                    st.info(st.session_state.cards[st.session_state.indice]['retro'])
+            
+            with col2:
+                if st.button("PROSSIMA ➡️", use_container_width=True):
+                    if st.session_state.indice < len(st.session_state.cards) - 1:
+                        st.session_state.indice += 1
+                        st.rerun()
+                    else:
+                        st.success("Mazzo completato!")
+                        if st.button("Ricomincia"):
+                            st.session_state.indice = 0
+                            random.shuffle(st.session_state.cards)
+                            st.rerun()
     else:
-        st.warning("Non è stato possibile estrarre parole. Controlla il formato del file .txt")
-
+        st.error("Il file lessico.txt è vuoto.")
 except FileNotFoundError:
-    st.error("Errore: Il file 'lessico.txt' non è stato trovato su GitHub.")
+    st.error("File 'lessico.txt' non trovato.")
