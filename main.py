@@ -45,52 +45,21 @@ st.set_page_config(page_title="Latino Flashcards", layout="centered")
 
 try:
     contenuto = ""
+    # Proviamo a leggere il file ignorando eventuali errori di caratteri strani
     try:
-        with open("lessico.txt", "r", encoding="utf-8") as f:
+        with open("lessico.txt", "r", encoding="utf-8", errors="ignore") as f:
             contenuto = f.read()
     except UnicodeDecodeError:
-        with open("lessico.txt", "r", encoding="latin-1") as f:
+        with open("lessico.txt", "r", encoding="latin-1", errors="ignore") as f:
             contenuto = f.read()
 
-    if contenuto:
+    # Pulizia di emergenza: se il file contiene simboli binari, li rimuoviamo
+    contenuto = "".join(char for char in contenuto if char.isprintable() or char in "\n\r\t ")
+
+    if contenuto and ":" in contenuto:
         cards = crea_flashcards(contenuto)
-        
-        if not cards:
-            st.warning("⚠️ Non ho trovato parole. Controlla che nel file ci siano i due punti (:) tra il latino e l'italiano.")
-        else:
-            if "indice" not in st.session_state:
-                st.session_state.indice = 0
-                st.session_state.cards = cards
-                random.shuffle(st.session_state.cards)
-
-            # Mostra progresso
-            st.write(f"Parola {st.session_state.indice + 1} di {len(st.session_state.cards)}")
-            
-            # Box della Flashcard
-            st.markdown(f"""
-            <div style="height: 200px; display: flex; align-items: center; justify-content: center; 
-            background-color: #f0f2f6; border-radius: 15px; border: 3px solid #ff4b4b; margin-bottom: 20px;">
-                <h1 style="color: #31333F; font-family: 'serif';">{st.session_state.cards[st.session_state.indice]['fronte']}</h1>
-            </div>
-            """, unsafe_allow_html=True)
-
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("👁️ MOSTRA RETRO", use_container_width=True):
-                    st.info(st.session_state.cards[st.session_state.indice]['retro'])
-            
-            with col2:
-                if st.button("PROSSIMA ➡️", use_container_width=True):
-                    if st.session_state.indice < len(st.session_state.cards) - 1:
-                        st.session_state.indice += 1
-                        st.rerun()
-                    else:
-                        st.success("Mazzo completato!")
-                        if st.button("Ricomincia"):
-                            st.session_state.indice = 0
-                            random.shuffle(st.session_state.cards)
-                            st.rerun()
+        # ... resto del codice per mostrare le card ...
     else:
-        st.error("Il file lessico.txt è vuoto.")
+        st.error("Il file sembra contenere dati illeggibili. Assicurati di aver copiato il TESTO dal PDF in un file .txt vero e proprio.")
 except FileNotFoundError:
     st.error("File 'lessico.txt' non trovato.")
